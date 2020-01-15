@@ -1,0 +1,103 @@
+pr:
+  branches:
+    include:
+      - dev
+  paths:
+    exclude:
+      - docs/*
+      - README.md
+
+trigger:
+ branches:
+   include:
+     - master
+ paths:
+   exclude:
+     - docs/*
+     - README.md
+     - azure-pipelines-ci.yml
+     - azure-pipelines-ci-cd.yml
+
+stages:
+- stage: Build_Stage
+  displayName: Build Stage
+  jobs:
+
+  - job: Infrastructure
+    displayName: Publish Infra files Job
+    pool:
+      name: Hosted Ubuntu 1604
+      vmImage: 'ubuntu-16.04'
+    steps:
+    - task: PublishBuildArtifacts@1
+      displayName: 'Publish Artifact: ARM templates'
+      inputs:
+        PathtoPublish: AzureResourceGroupDeployment
+        ArtifactName: arm
+  - job: InspecTest
+    displayName: Publish Inspec test files Job
+    pool:
+      name: Hosted Ubuntu 1604
+      vmImage: 'ubuntu-16.04'
+    steps:
+    - task: PublishBuildArtifacts@1
+      displayName: 'Publish Artifact: Inspec Azure Test'
+      inputs:
+        PathtoPublish: azure-testing
+        ArtifactName: azure-testing
+
+
+- stage: Test_Stage
+  displayName: Test Stage
+  jobs:
+  - job:
+    displayName: Deploy to Test Job
+    pool:
+      vmImage: "Ubuntu 18.04"
+    steps:
+      - task: UseRubyVersion@0
+        displayName: "Install Ruby"
+        inputs:
+          versionSpec: "= 2.5.5"
+          addToPath: true
+      - script: gem install inspec -v 3.9.3 
+        displayName: "Install inspec"
+      - script: gem list | grep inspec
+        displayName: "grep ruby"
+      
+      - script: gem env
+        displayName: "Gem env"
+      
+   
+          
+      - task: DownloadBuildArtifacts@0
+        displayName: Download Build Artifacts
+        inputs:
+          artifactName: azure-testing
+          downloadPath: $(System.DefaultWorkingDirectory)    
+  
+      - task: Bash@3
+        displayName: "Run inspec tests"
+        inputs:
+          targetType: inline
+          script: |
+            export AZURE_SUBSCRIPTION_ID="$(inspec.subscriptionId)"
+            export AZURE_CLIENT_ID="$(inspec.clientId)"
+            export AZURE_CLIENT_SECRET="$(inspec.clientSecret)"
+            export AZURE_TENANT_ID="$(inspec.tenantId)"
+            inspec exec $(Build.SourcesDirectory)/azure-testing -t azure:// --reporter cli junit:testresults.xml html:report.html
+          
+      - task: PublishTestResults@2
+        displayName: Publish inspec test results
+        condition: succeededOrFailed()
+        inputs:
+          testResultsFiles: "**/testresults.xml"
+          mergeTestResults: true
+    
+      - task: PublishBuildArtifacts@1
+        displayName: Publish inspec HTML report
+        condition: succeededOrFailed()
+        inputs:
+          pathtoPublish: "report.html"
+          artifactName: "report"
+          

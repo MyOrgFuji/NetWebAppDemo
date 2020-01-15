@@ -1,0 +1,24 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "hostingPlanName": {
+      "value": "AbhayDiwan-service-plan"
+    },
+    "administratorLogin": {
+      "value": "userabhay"
+    },
+    "administratorLoginPassword": {
+      "value": "@Aa123456"
+    },
+    "databaseName": {
+      "value": "EmployeesDB"
+    },
+    "webSiteName": {
+      "value": "abhaydiwan-webapp"
+    },
+    "sqlserverName": {
+      "value": "abhaydiwan-sql"
+    }
+  }
+}
